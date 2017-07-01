@@ -1,0 +1,23 @@
+[
+	{
+		"id": "remote_tree",
+		"caption": "Remote",
+		"children": [
+			{
+				"id": "quick_connect",
+				"caption": "Quick Connect…",
+				"command": "quick_connect"
+			},
+			{
+				"id": "connect",
+				"caption": "Connect…",
+				"command": "connect"
+			},
+			{
+				"id": "edit_servers",
+				"caption": "Edit Servers/Settings",
+				"command": "edit_servers"
+			}
+		]
+	}
+]
