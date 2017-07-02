@@ -2,6 +2,7 @@
 
 This Sublime Text 3 plugin allows you to browse directories on remote servers without need to download the whole file structure.
 
+![Screenshot](https://pp.userapi.com/c639723/v639723814/379bd/fz1PmdghIbc.jpg)
 # Installation
 
 1. Download this package as ZIP file, extract it.
