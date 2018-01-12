@@ -351,7 +351,7 @@ class ConnectCommand(sublime_plugin.WindowCommand):
 
 	def is_enabled(self):
 		global servers
-		return servers and len(servers) > 0
+		return bool(servers) and len(servers) > 0
 
 	def on_server_select(self, index):
 		global servers
