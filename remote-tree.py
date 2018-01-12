@@ -66,6 +66,7 @@ class OpenFileThread(threading.Thread):
 		conn = self.tree.server['conn']
 
 		local_path = os.path.join(self.tree.server['local_path'], '') + os.path.join(self.item['path'], '') + self.item['name']
+		local_path = os.path.expanduser(local_path)
 		remote_path = self.tree.server['remote_path'] + '/' + self.item['path'] + self.item['name']
 
 		download = True
@@ -408,6 +409,7 @@ class EventListener(sublime_plugin.EventListener):
 
 		for server in servers:
 			prefix = os.path.join(server['local_path'], '')
+			prefix = os.path.expanduser(prefix)
 			if fname.startswith(prefix):
 				ensure_connection(server)
 				suffix = fname[len(prefix):]
