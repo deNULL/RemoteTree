@@ -327,6 +327,9 @@ class EditServersCommand(sublime_plugin.WindowCommand):
 
 		// If true, ignores modification times of files and downloads them even if they are unchanged.
 		// "always_download": false,
+
+		// Timeout in seconds (5 seconds by default), 0 to disable
+		// "timeout": 5,
 	}]
 }''' })
 		else:
@@ -437,6 +440,13 @@ def ensure_connection(server):
 		private_key_pass  = server['ssh_key_pass'] if 'ssh_key_pass' in server else None,
 		cnopts = cnopts
 	) 
+	
+	if not 'timeout' in server:
+		server['conn'].timeout = 5 # 5 secs by default
+	elif server['timeout'] == 0:
+		server['conn'].timeout = None
+	else:
+		server['conn'].timeout = server['timeout']
  
 def update_servers():
 	global servers
