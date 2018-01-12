@@ -61,13 +61,39 @@ class OpenFileThread(threading.Thread):
 		tree.loading += 1
 		threading.Thread.__init__(self)
 
+	def download_callback(self, view, local_name, remote_name, loaded, total, repeat):
+		view.window().status_message(
+			'Downloading %s to %s… %s' % (
+				remote_name,
+				local_name,
+				'%d%%' % (loaded * 100 / total) if loaded < total else 'Done!'))
+
+		if loaded >= total and not repeat:
+			# Make message stay a bit longer
+			sublime.set_timeout(lambda: self.download_callback(view, local_name, remote_name, loaded, total, True), 3000)
+			window = self.tree.view.window()
+			
+			(group, index) = window.get_view_index(self.tree.view)
+
+			view = window.open_file(local_name)
+			if window.num_groups() > 1:
+				group = 1
+				window.set_view_index(view, group, 0)
+
 	def run(self):
 		ensure_connection(self.tree.server)
 		conn = self.tree.server['conn']
 
-		local_path = os.path.join(self.tree.server['local_path'], '') + os.path.join(self.item['path'], '') + self.item['name']
+		local_path = self.tree.server['local_path'] + (
+			'' if self.tree.server['local_path'].endswith(os.sep) or self.item['path'].startswith(os.sep) else os.sep) + (
+			self.item['path']) + (
+			'' if self.item['path'].endswith(os.sep) or self.item['name'].startswith(os.sep) else os.sep) + (
+		 	self.item['name'])
+		 	
 		local_path = os.path.expanduser(local_path)
-		remote_path = self.tree.server['remote_path'] + '/' + self.item['path'] + self.item['name']
+		remote_path = self.tree.server['remote_path'] + (
+			'' if self.tree.server['remote_path'].endswith('/') or self.item['path'].startswith('/') else '/') + (
+			self.item['path'][1:] if self.tree.server['remote_path'].endswith('/') and self.item['path'].startswith('/') else self.item['path']) + self.item['name']
 
 		download = True
 
@@ -80,17 +106,24 @@ class OpenFileThread(threading.Thread):
 
 		if download:
 			os.makedirs(os.path.dirname(local_path), exist_ok=True)
-			conn.get(remote_path, local_path, preserve_mtime=True) 
+			conn.get(
+				remote_path, 
+				local_path, 
+				preserve_mtime=True,
+				callback=lambda loaded, total: self.download_callback(self.tree.view, local_path, remote_path, loaded, total, False))
+		else:
+			window = self.tree.view.window()
+			(group, index) = window.get_view_index(self.tree.view)
 
-		window = self.tree.view.window()
-		(group, index) = window.get_view_index(self.tree.view)
-		view = window.open_file(local_path)
-		if window.num_groups() > 1:
-			group = 1
-			window.set_view_index(view, group, 0)
+			view = window.open_file(local_path)
+			if window.num_groups() > 1:
+				group = 1
+				window.set_view_index(view, group, 0)
+		
 
 		self.item['loading'] = False
 		self.tree.loading -= 1
+
 		self.tree.rebuild_phantom()
 
 
@@ -401,6 +434,25 @@ class EventListener(sublime_plugin.EventListener):
 					del tree.server['conn']
 		trees = [tree for tree in trees if tree.view != view]
 
+	def upload_callback(self, view, local_name, remote_name, uploaded, total, repeat):
+		#view.set_status(
+		#	'zzz-remote-tree-save',
+		#	'Uploading to %s… %s' % (
+		#		remote_name, 
+		#		'%d%%' % (uploaded * 100 / total) if uploaded < total else 'Done!'))
+		#if uploaded >= total:
+		#	sublime.set_timeout(lambda: view.erase_status('zzz-remote-tree-save'), 5000)
+
+		view.window().status_message(
+			'Uploading %s to %s… %s' % (
+				local_name,
+				remote_name, 
+				'%d%%' % (uploaded * 100 / total) if uploaded < total else 'Done!'))
+
+		if uploaded >= total and not repeat:
+			# Make message stay a bit longer
+			sublime.set_timeout(lambda: self.upload_callback(view, local_name, remote_name, uploaded, total, True), 3000)
+
 	def on_post_save_async(self, view):
 		global servers
 		fname = view.file_name()
@@ -416,12 +468,13 @@ class EventListener(sublime_plugin.EventListener):
 			if fname.startswith(prefix):
 				ensure_connection(server)
 				suffix = fname[len(prefix):]
-				remote_path = server['remote_path'] + '/' + suffix
+				remote_path = server['remote_path'] + ('' if server['remote_path'].endswith('/') or suffix.startswith('/') else '/') + suffix
 				server['conn'].makedirs(os.path.dirname(remote_path))
 				server['conn'].put(
 					fname,
 					remote_path, 
-					preserve_mtime=True)
+					preserve_mtime=True,
+					callback=lambda uploaded, total: self.upload_callback(view, fname, remote_path, uploaded, total, False))
 				break
 
 def ensure_connection(server):
