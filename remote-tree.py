@@ -9,7 +9,6 @@ import tempfile
 sys.path.append(os.path.dirname(__file__))
 import pysftp
 
- 
 servers = []
 trees = []
 
@@ -104,6 +103,8 @@ class RemoteTree():
 		global trees
 		self.server = server
 		server['trees'] = (server['trees'] + 1) if 'trees' in server else 1
+		self.rebuild_lock = threading.Lock()
+
 
 		# TODO: make all this optional
 
@@ -212,7 +213,8 @@ class RemoteTree():
 			self.expand(int(comps[1]))
 
 	def rebuild_phantom(self):
-		html = '''<body id="tree">
+		with self.rebuild_lock:
+			html = '''<body id="tree">
 <style>
 	body {
 		font-size: 12px;
@@ -241,8 +243,8 @@ class RemoteTree():
 		color: var(--foreground);
 	}
 </style>''' + ''.join(self.render_subtree(self.tree, [])) + '</body>'
-		self.phantom = sublime.Phantom(sublime.Region(0), html, sublime.LAYOUT_BLOCK, on_navigate=self.on_click)
-		self.phantom_set.update([self.phantom])
+			self.phantom = sublime.Phantom(sublime.Region(0), html, sublime.LAYOUT_BLOCK, on_navigate=self.on_click)
+			self.phantom_set.update([self.phantom])
  
 	def anim_loading(self):
 		if self.loading > 0:
@@ -312,7 +314,7 @@ class EditServersCommand(sublime_plugin.WindowCommand):
 		// Username
 		"user": "root",
 
-		// Password (not needed if you're using private keys)
+		// Password (comment out if you're using private keys)
 		"password": "",
 
 		// Location of the private key file to use for authentication
