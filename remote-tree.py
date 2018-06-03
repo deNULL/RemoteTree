@@ -479,7 +479,12 @@ class EventListener(sublime_plugin.EventListener):
 
 def ensure_connection(server):
 	if 'conn' in server and server['conn'].sftp_client.get_channel() and server['conn'].sftp_client.get_channel().get_transport() and server['conn'].sftp_client.get_channel().get_transport().is_active():
-		return
+		try:
+			transport = server['conn'].sftp_client.get_channel().get_transport()
+			transport.send_ignore()
+			return
+		except EOFError:
+			print('Connection is broken')
 
 	print('Connecting to %s…' % server['host'])
 	cnopts = pysftp.CnOpts()
