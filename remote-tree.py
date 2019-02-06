@@ -61,6 +61,9 @@ class OpenFileThread(threading.Thread):
 		tree.loading += 1
 		threading.Thread.__init__(self)
 
+	def download_callback_wrap(self, view, local_name, remote_name, loaded, total, repeat):
+		sublime.set_timeout(lambda: self.download_callback(view, local_name, remote_name, loaded, total, repeat), 0)
+
 	def download_callback(self, view, local_name, remote_name, loaded, total, repeat):
 		view.window().status_message(
 			'Downloading %s to %s… %s' % (
@@ -110,7 +113,7 @@ class OpenFileThread(threading.Thread):
 				remote_path, 
 				local_path, 
 				preserve_mtime=True,
-				callback=lambda loaded, total: self.download_callback(self.tree.view, local_path, remote_path, loaded, total, False))
+				callback=lambda loaded, total: self.download_callback_wrap(self.tree.view, local_path, remote_path, loaded, total, False))
 		else:
 			window = self.tree.view.window()
 			(group, index) = window.get_view_index(self.tree.view)
