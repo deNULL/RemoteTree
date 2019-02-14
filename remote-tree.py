@@ -20,7 +20,13 @@ class LoadSubtreeThread(threading.Thread):
 		threading.Thread.__init__(self)
  
 	def run(self):
-		ensure_connection(self.tree.server)
+		if not ensure_connection(self.tree.server):
+			sublime.set_timeout(lambda: self.tree.view.window().status_message('Unable to connect to %s' % self.tree.server['host']), 0)
+			self.item['loading'] = False
+			self.tree.loading -= 1
+			self.tree.rebuild_phantom()
+			return
+
 		conn = self.tree.server['conn']
 		conn.chdir(self.tree.server['remote_path'] + '/' + self.item['path'] + self.item['name'])
 		childs = conn.listdir_attr()
@@ -84,7 +90,13 @@ class OpenFileThread(threading.Thread):
 				window.set_view_index(view, group, 0)
 
 	def run(self):
-		ensure_connection(self.tree.server)
+		if not ensure_connection(self.tree.server):
+			sublime.set_timeout(lambda: self.tree.view.window().status_message('Unable to connect to %s' % self.tree.server['host']), 0)
+			self.item['loading'] = False
+			self.tree.loading -= 1
+			self.tree.rebuild_phantom()
+			return
+
 		conn = self.tree.server['conn']
 
 		local_path = self.tree.server['local_path'] + (
@@ -469,7 +481,10 @@ class EventListener(sublime_plugin.EventListener):
 			prefix = os.path.join(server['local_path'], '')
 			prefix = os.path.expanduser(prefix)
 			if fname.startswith(prefix):
-				ensure_connection(server)
+				if not ensure_connection(server):
+					sublime.set_timeout(lambda: view.window().status_message('Unable to connect to %s' % self.tree.server['host']), 0)
+					return
+
 				suffix = fname[len(prefix):]
 				remote_path = server['remote_path'] + ('' if server['remote_path'].endswith('/') or suffix.startswith('/') else '/') + suffix
 				server['conn'].makedirs(os.path.dirname(remote_path))
@@ -483,31 +498,36 @@ class EventListener(sublime_plugin.EventListener):
 def ensure_connection(server):
 	if 'conn' in server and server['conn'].sftp_client.get_channel() and server['conn'].sftp_client.get_channel().get_transport() and server['conn'].sftp_client.get_channel().get_transport().is_active():
 		try:
-			transport = server['conn'].sftp_client.get_channel().get_transport()
-			transport.send_ignore()
-			return
-		except EOFError:
+			server['conn'].stat(".")
+			return True
+		except:
 			print('Connection is broken')
 
 	print('Connecting to %s…' % server['host'])
-	cnopts = pysftp.CnOpts()
-	cnopts.hostkeys = None
-	server['conn'] = pysftp.Connection(
-		server['host'], 
-		port              =	server['port'] if 'port' in server else 22,
-		username          =	server['user'] if 'user' in server else None,
-		password          = server['password'] if 'password' in server else None,
-		private_key       = server['ssh_key_file'] if 'ssh_key_file' in server else None,
-		private_key_pass  = server['ssh_key_pass'] if 'ssh_key_pass' in server else None,
-		cnopts = cnopts
-	) 
-	
-	if not 'timeout' in server:
-		server['conn'].timeout = 5 # 5 secs by default
-	elif server['timeout'] == 0:
-		server['conn'].timeout = None
-	else:
-		server['conn'].timeout = server['timeout']
+
+	try:
+		cnopts = pysftp.CnOpts()
+		cnopts.hostkeys = None
+		server['conn'] = pysftp.Connection(
+			server['host'], 
+			port              =	server['port'] if 'port' in server else 22,
+			username          =	server['user'] if 'user' in server else None,
+			password          = server['password'] if 'password' in server else None,
+			private_key       = server['ssh_key_file'] if 'ssh_key_file' in server else None,
+			private_key_pass  = server['ssh_key_pass'] if 'ssh_key_pass' in server else None,
+			cnopts = cnopts
+		) 
+		
+		if not 'timeout' in server:
+			server['conn'].timeout = 5 # 5 secs by default
+		elif server['timeout'] == 0:
+			server['conn'].timeout = None
+		else:
+			server['conn'].timeout = server['timeout']
+		return True
+	except:
+		print('Unable to connect to %s' % server['host'])
+		return False
  
 def update_servers():
 	global servers
