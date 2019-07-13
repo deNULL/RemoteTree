@@ -89,6 +89,11 @@ class OpenFileThread(threading.Thread):
 				group = 1
 				window.set_view_index(view, group, 0)
 
+			self.item['loading'] = False
+			self.tree.loading -= 1
+
+			self.tree.rebuild_phantom()
+
 	def run(self):
 		if not ensure_connection(self.tree.server):
 			sublime.set_timeout(lambda: self.tree.view.window().status_message('Unable to connect to %s' % self.tree.server['host']), 0)
@@ -134,12 +139,11 @@ class OpenFileThread(threading.Thread):
 			if window.num_groups() > 1:
 				group = 1
 				window.set_view_index(view, group, 0)
-		
 
-		self.item['loading'] = False
-		self.tree.loading -= 1
+			self.item['loading'] = False
+			self.tree.loading -= 1
 
-		self.tree.rebuild_phantom()
+			self.tree.rebuild_phantom()
 
 
 class RemoteTree():

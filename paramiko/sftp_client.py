@@ -635,10 +635,10 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
             data = reader.read(32768)
             writer.write(data)
             size += len(data)
-            if len(data) == 0:
-                break
             if callback is not None:
                 callback(size, file_size)
+            if len(data) == 0:
+                break
         return size
 
     def putfo(self, fl, remotepath, file_size=0, callback=None, confirm=True):
